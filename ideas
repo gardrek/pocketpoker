@@ -1,0 +1,54 @@
+useful options for running on really old terminals:
+
+the first thing is of course to limit the game's size, but it's already going to be small anyway
+probably 10 lines or so by at least 30 columns? that'd easily fit 4 copies multiplexed on an 80x24 terminal
+
+ascii-only mode
+    example:
+        A♠  K♥  Q♣  J♦ 10♦
+        becomes
+        As  Kh  Qc  Jd 10d
+            maybe could be better?
+        or maybe symobls?
+        A%  K&  Q!  J* 10*
+        typewriter backspace combining!??
+        ^|  v"  |%  ^v  ^v
+
+non-echoing input
+    if someone really wants to play this on a real line printer or something idk
+    extra option: ring the bell on accepting/rejecting input?
+
+
+
+
+scoring:
+JACKS OR BETTER: 1x =    5
+TWO PAIR:        2x =   10
+THREE of a KIND: 3x =   15
+STRAIGHT:        4x =   20
+FLUSH:           5x =   25
+FULL HOUSE:      8x =   40
+FOUR of a KIND: 25x =  125
+STRAIGHT FLUSH: 50x =  250
+ROYAL FLUSH:   600x = 3000
+
+JACKS OR BETTER:  5 =   1x
+TWO PAIR:        10 =   2x
+THREE of a KIND: 15 =   3x
+STRAIGHT:        20 =   4x
+FLUSH:           25 =   5x
+FULL HOUSE:      40 =   8x
+FOUR of a KIND: 125 =  25x
+STRAIGHT FLUSH: 250 =  50x
+ROYAL FLUSH:   3000 = 600x
+
+JACKS OR BETTER:  5
+TWO PAIR:        10
+THREE of a KIND: 15
+STRAIGHT:        20
+FLUSH:           25
+FULL HOUSE:      40
+FOUR of a KIND: 125
+STRAIGHT FLUSH: 250
+ROYAL FLUSH:   3000
+

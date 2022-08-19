@@ -1,0 +1,13 @@
+[package]
+name = "pocketpoker"
+version = "0.1.0"
+authors = ["gardrek"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+prng = { git = "https://github.com/gardrek/prng", branch = "replit" }
+console = "0.15.0"
+num_enum = "0.5.7"
+enum-iterator = "1.1.3"
