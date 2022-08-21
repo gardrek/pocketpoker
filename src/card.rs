@@ -7,11 +7,13 @@ const SUIT_CHAR: [char; 4] = SUIT_CHAR_SOLID;
 
 // const RED_SUIT_STYLE: console::Style = console::Style::new().red();
 
-use num_enum::IntoPrimitive;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use enum_iterator::Sequence;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, IntoPrimitive, Sequence)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, IntoPrimitive, TryFromPrimitive, Sequence,
+)]
 #[repr(usize)]
 pub enum Rank {
     Two = 2,
@@ -60,7 +62,8 @@ impl std::fmt::Display for Rank {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Sequence)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive, Sequence)]
+#[repr(usize)]
 pub enum Suit {
     Spade = 0,
     Heart,
@@ -76,9 +79,9 @@ impl std::fmt::Display for Suit {
 
 use Rank::*;
 
-const ACE_HIGH_STRAIGHT: [&Rank; 5] = [&Ten, &Jack, &Queen, &King, &Ace];
+pub const ACE_HIGH_STRAIGHT: [&Rank; 5] = [&Ten, &Jack, &Queen, &King, &Ace];
 
-const FIVE_HIGH_STRAIGHT: [&Rank; 5] = [&Two, &Three, &Four, &Five, &Ace];
+pub const FIVE_HIGH_STRAIGHT: [&Rank; 5] = [&Two, &Three, &Four, &Five, &Ace];
 
 #[derive(Clone, Copy, Eq)]
 pub struct Card {
@@ -182,19 +185,12 @@ impl Deck {
         }
     }
 
-    // return a hand made from a reference to five cards
-    // TODO: actually make a version of Hand that uses references
-    // then this function can instead make that
-    pub fn _peek_poker_hand(&self, offset: usize, length: usize) -> Option<Hand> {
-        if self.deck.len() < length {
-            return None;
-        }
-
-        Some(Hand::new(&self.deck[offset..(offset + length)]))
+    pub fn peek_five_cards(&self, offset: usize) -> &[Card] {
+        &self.peek_cards(offset, 5)
     }
 
-    pub fn peek_five_cards(&self, offset: usize) -> &[Card] {
-        &self.deck[offset..(offset + 5)]
+    pub fn peek_cards(&self, offset: usize, len: usize) -> &[Card] {
+        &self.deck[offset..(offset + len)]
     }
 }
 
@@ -204,7 +200,7 @@ impl std::fmt::Display for Deck {
     }
 }
 
-#[derive(Eq)]
+#[derive(Debug, Eq)]
 pub struct Hand {
     hand: Vec<Card>,
     runs: Vec<Vec<Card>>,
@@ -262,6 +258,8 @@ impl Hand {
 
         let mut runs = runs.into_iter().collect::<Vec<_>>();
 
+        // this relies on the sort being stable to be correct
+        // otherwise the kickers will be out of order
         runs.sort_by(|a, b| a.len().cmp(&b.len()));
 
         let mut kickers = runs
@@ -270,6 +268,10 @@ impl Hand {
             .filter(|run| run.len() == 1)
             .map(|run| run[0])
             .collect::<Vec<_>>();
+
+        // this way we can use lexical sorting
+        // and also the high/scoring cards will be on the left which is seemingly standard ordering
+        runs.reverse();
 
         let runs = runs
             .into_iter()
@@ -289,6 +291,8 @@ impl Hand {
             assert_eq!(kickers_ranks, [&Ace, &Two, &Three, &Four, &Five]);
         }
 
+        kickers.reverse();
+
         let is_flush = Hand::eval_is_flush(&sorted);
 
         let ranks = sorted.iter().map(|card| &card.rank).collect::<Vec<_>>();
@@ -306,11 +310,7 @@ impl Hand {
         }
     }
 
-    pub fn _high_rank(&self) -> Option<Rank> {
-        self.kickers.last().map(|card| card.rank)
-    }
-
-    pub fn eval_is_flush(hand: &Vec<Card>) -> bool {
+    fn eval_is_flush(hand: &Vec<Card>) -> bool {
         let mut same_suit = None;
         for &card in hand {
             let &suit = &card.suit;
@@ -329,7 +329,7 @@ impl Hand {
     }
 
     // given a list of five cards sorted by rank, aces high, return whether it is a straight
-    pub fn eval_is_straight(sorted: &Vec<Card>) -> bool {
+    fn eval_is_straight(sorted: &Vec<Card>) -> bool {
         let ranks = sorted.iter().map(|card| &card.rank).collect::<Vec<_>>();
 
         if ranks == FIVE_HIGH_STRAIGHT {
@@ -361,7 +361,7 @@ impl Hand {
                 [2] => Pair,
                 [2, 2] => TwoPair,
                 [3] => ThreeOfAKind,
-                [2, 3] => FullHouse,
+                [3, 2] => FullHouse,
                 [4] => FourOfAKind,
                 [5] => FiveOfAKind,
                 [] => return None,
@@ -399,37 +399,20 @@ impl Hand {
         HighCard
     }
 
-    pub fn compare(&self, other: &Hand) -> std::cmp::Ordering {
+    fn compare(&self, other: &Hand) -> std::cmp::Ordering {
         let order = self.ranking.cmp(&other.ranking);
 
         match order {
-            std::cmp::Ordering::Equal => (),
-            _ => return order,
+            std::cmp::Ordering::Equal => {
+                (&self.runs, &self.kickers).cmp(&(&other.runs, &other.kickers))
+            }
+            _ => order,
         }
-
-        // this is the way it should be
-        // it would work if i went through and changed the internal formats to be reversed
-        // (&self.runs, &self.kickers).cmp(&(&other.runs, &other.kickers))
-
-        // this way is stupid but i'm gonna do it for now, because reversing them internally is too hard
-        (
-            &self.runs.iter().rev().collect::<Vec<_>>(),
-            &self.kickers.iter().rev().collect::<Vec<_>>(),
-        )
-            .cmp(&(
-                &other.runs.iter().rev().collect::<Vec<_>>(),
-                &other.kickers.iter().rev().collect::<Vec<_>>(),
-            ))
     }
 
-    pub fn _display_hand_with_info(&self) -> String {
+    pub fn display_hand_debug_info(&self) -> String {
         format!(
-            "{} {}-HIGH {:?} {:?} {:?}  {} points",
-            self,
-            match self._high_rank() {
-                Some(rank) => format!("{}", rank),
-                None => "xx".into(),
-            },
+            "{:?} {:?} {:?}  {} points",
             self.ranking,
             self.runs,
             self.kickers,
@@ -483,147 +466,4 @@ pub enum HandRanking {
     StraightFlush,
     RoyalFlush,
     FiveOfAKind,
-}
-
-#[cfg(test)]
-mod tests {
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
-    use super::*;
-
-    #[test]
-    fn royal_flush() {
-        use Rank::*;
-        use Suit::*;
-
-        let hand = Hand::new(
-            &[
-                (Ten, Diamond),
-                (Jack, Diamond),
-                (Queen, Diamond),
-                (King, Diamond),
-                (Ace, Diamond),
-            ]
-            .into_iter()
-            .map(|(rank, suit)| Card { rank, suit })
-            .collect::<Vec<_>>()[..],
-        );
-
-        assert!(hand.is_straight());
-        assert!(hand.is_flush());
-        assert!(hand.is_royal());
-    }
-
-    #[test]
-    fn ace_high_straight() {
-        use Rank::*;
-        use Suit::*;
-
-        let hand = Hand::new(
-            &[
-                (Ten, Heart),
-                (Jack, Spade),
-                (Queen, Spade),
-                (King, Spade),
-                (Ace, Spade),
-            ]
-            .into_iter()
-            .map(|(rank, suit)| Card { rank, suit })
-            .collect::<Vec<_>>()[..],
-        );
-
-        use HandRanking::*;
-
-        let is_straight = match &hand.ranking {
-            Straight | StraightFlush | RoyalFlush => true,
-            _ => false,
-        };
-
-        assert!(is_straight);
-    }
-
-    #[test]
-    fn five_high_straight() {
-        use Rank::*;
-        use Suit::*;
-
-        let hand = Hand::new(
-            &[
-                (Ace, Heart),
-                (Two, Spade),
-                (Three, Spade),
-                (Four, Spade),
-                (Five, Spade),
-            ]
-            .into_iter()
-            .map(|(rank, suit)| Card { rank, suit })
-            .collect::<Vec<_>>()[..],
-        );
-
-        let mut copy = hand.hand.clone();
-
-        copy.sort();
-
-        let sorted = copy;
-
-        let is_five_high_straight =
-            sorted.iter().map(|card| &card.rank).collect::<Vec<_>>() == FIVE_HIGH_STRAIGHT;
-
-        use HandRanking::*;
-
-        let is_straight = match &hand.ranking {
-            Straight | StraightFlush | RoyalFlush => true,
-            _ => false,
-        };
-
-        assert!(is_straight);
-        assert!(is_five_high_straight);
-    }
-
-    #[test]
-    fn sorting() {
-        let mut a = [4, 3, 2];
-        a.sort();
-        let mut b = vec![vec![8, 3], vec![6, 2, 4], vec![2]];
-        b.sort();
-        assert_eq!(&b[..], vec![vec![2], vec![6, 2, 4], vec![8, 3]]);
-
-        let winner = (vec![vec![11, 11]], vec![5, 6, 7]);
-        let loser = (vec![vec![10, 10]], vec![5, 6, 9]);
-        assert!(winner > loser);
-    }
-
-    #[test]
-    fn five_high_straight_compare() {
-        use Rank::*;
-        use Suit::*;
-
-        let hand = Hand::new(
-            &[
-                (Ace, Heart),
-                (Two, Spade),
-                (Three, Spade),
-                (Four, Spade),
-                (Five, Spade),
-            ]
-            .into_iter()
-            .map(|(rank, suit)| Card { rank, suit })
-            .collect::<Vec<_>>()[..],
-        );
-
-        let other_hand = Hand::new(
-            &[
-                (Two, Spade),
-                (Three, Spade),
-                (Four, Spade),
-                (Five, Spade),
-                (Six, Heart),
-            ]
-            .into_iter()
-            .map(|(rank, suit)| Card { rank, suit })
-            .collect::<Vec<_>>()[..],
-        );
-
-        assert!(hand < other_hand);
-        assert_eq!(hand.compare(&other_hand), std::cmp::Ordering::Less);
-    }
 }

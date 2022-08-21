@@ -1,1 +1,1 @@
-rustup update stable && cargo build
+rustup update stable && cargo test

@@ -1,6 +1,9 @@
-mod card;
-mod score;
-mod ui;
+pub mod card;
+pub mod score;
+pub mod ui;
+
+#[cfg(test)]
+mod tests;
 
 use card::{Card, Deck, Hand};
 use ui::HandRankingDisplay;
@@ -152,61 +155,11 @@ fn display_cards_and_holds(cards: &[Card], held: &[bool]) {
             print!(" {:+} ", card);
         }
     }
+//    println!(" {}", Hand::new(cards)._display_hand_debug_info());
     println!();
 }
 
-fn _old_main() -> Result<(), Box<dyn std::error::Error>> {
-    // prng is short for Pseudo-Random Number Generator
-    let mut prng = prng::Prng64::new(get_prng_seed());
-
-    let mut hands_dealt = 0;
-    let mut hands_matched = 0;
-    let mut total_score = 0;
-
-    let mut deck = card::Deck::new();
-
-    for _ in 0..500 {
-        deck.shuffle(&mut prng);
-
-        for index in 0..5 {
-            let hand1 = deck._peek_poker_hand(index * 5, 5).unwrap();
-
-            let score = score::score_hand(&hand1);
-
-            //          let hand2 = deck.peek_poker_hand(index * 10, 5).unwrap();
-
-            hands_dealt += 1;
-
-            total_score += score as isize - 5;
-
-            //            if hand1.compare(&hand2) != hand1.old_compare(&hand2) {
-            if score >= 10 {
-                hands_matched += 1;
-
-                println!("{}", hand1._display_hand_with_info());
-                //                println!("{}", hand2.display_hand_with_info());
-                //                println!();
-            }
-        }
-    }
-
-    println!("hands dealt:     {:>10}", hands_dealt);
-    println!("matching hands:  {:>10}", hands_matched);
-
-    println!(
-        "percent:         {:>13.02}%",
-        (hands_matched as f64 / hands_dealt as f64) * 100.0
-    );
-
-    println!(
-        "average score:   {:>13.02}",
-        (total_score as f64 / hands_dealt as f64)
-    );
-
-    Ok(())
-}
-
-fn get_prng_seed() -> [u64; 4] {
+pub fn get_prng_seed() -> [u64; 4] {
     use std::time::SystemTime;
 
     let duration = SystemTime::now()
@@ -217,5 +170,7 @@ fn get_prng_seed() -> [u64; 4] {
     let number1 = duration.subsec_nanos();
     // let number1 = duration.subsec_nanos() & 0xffff0000 >> 16;
 
+    // note, this is [0, 1 ... ] because it's technically possible the other
+    // numbers could be zero. all zeroes is invalid
     [0, 1, number0 as u64, number1 as u64]
 }

@@ -1,4 +1,4 @@
-run = ["cargo", "build"]
+run = ["cargo", "test"]
 
 onboot = ["rustup", "update", "stable"]
 
